@@ -1,13 +1,20 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
+const { createClient } = require("@supabase/supabase-js");
 
 const PORT = Number(process.env.PORT) || 3000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
 const ACCESS_PIN = process.env.ACCESS_PIN || "";
+const sessions = new Map();
 const attempts = new Map();
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null;
 
 function sendJson(res, statusCode, body) {
   res.writeHead(statusCode, {
@@ -15,21 +22,16 @@ function sendJson(res, statusCode, body) {
     "Cache-Control": "no-store, max-age=0",
     "Pragma": "no-cache",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
     "X-Content-Type-Options": "nosniff",
   });
   res.end(JSON.stringify(body));
 }
-
 function getClientKey(req) {
-  // Render terminates TLS in front of the app. Use the first forwarded IP for
-  // a lightweight per-IP throttle; never log the submitted PIN.
-  return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown")
-    .toString().split(",")[0].trim().slice(0, 80);
+  return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").toString().split(",")[0].trim().slice(0, 80);
 }
-
-async function readJson(req, maxBytes = 2048) {
+async function readJson(req, maxBytes = 16 * 1024) {
   let body = "";
   for await (const chunk of req) {
     body += chunk;
@@ -37,101 +39,116 @@ async function readJson(req, maxBytes = 2048) {
   }
   return JSON.parse(body || "{}");
 }
-
 function pinMatches(candidate) {
   if (!ACCESS_PIN || !/^\d{6}$/.test(candidate)) return false;
   const expected = Buffer.from(ACCESS_PIN, "utf8");
   const supplied = Buffer.from(candidate, "utf8");
   return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
 }
+function getSession(req) {
+  const auth = String(req.headers.authorization || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const expires = sessions.get(token);
+  if (!token || !expires || expires <= Date.now()) {
+    if (token) sessions.delete(token);
+    return null;
+  }
+  return token;
+}
+function requireChatReady(res) {
+  if (!supabase) {
+    sendJson(res, 503, { error: "Chat database is not configured. Add SUPABASE_SERVICE_ROLE_KEY to the Render service." });
+    return false;
+  }
+  return true;
+}
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
       "Access-Control-Max-Age": "600",
     });
     res.end();
     return;
   }
-
   const pathname = new URL(req.url, "http://localhost").pathname;
 
   if (pathname === "/api/verify-pin" && req.method === "POST") {
     if (!ACCESS_PIN || !/^\d{6}$/.test(ACCESS_PIN)) {
-      sendJson(res, 503, { error: "PIN verification is not configured" });
-      return;
+      sendJson(res, 503, { error: "PIN verification is not configured" }); return;
     }
-    const key = getClientKey(req);
-    const now = Date.now();
-    const entry = attempts.get(key);
+    const key = getClientKey(req), now = Date.now(), entry = attempts.get(key);
     if (entry && now - entry.startedAt < WINDOW_MS && entry.count >= MAX_ATTEMPTS) {
-      sendJson(res, 429, { valid: false, error: "Too many attempts" });
-      return;
+      sendJson(res, 429, { valid: false, error: "Too many attempts" }); return;
     }
     if (!entry || now - entry.startedAt >= WINDOW_MS) attempts.set(key, { startedAt: now, count: 1 });
     else entry.count += 1;
-
     let payload;
-    try {
-      payload = await readJson(req);
-    } catch {
-      sendJson(res, 400, { valid: false, error: "Invalid request" });
-      return;
-    }
+    try { payload = await readJson(req); }
+    catch { sendJson(res, 400, { valid: false, error: "Invalid request" }); return; }
     const pin = typeof payload.pin === "string" ? payload.pin : "";
-    if (pinMatches(pin)) {
-      attempts.delete(key);
-      sendJson(res, 200, { valid: true });
-    } else {
-      sendJson(res, 401, { valid: false });
+    if (!pinMatches(pin)) { sendJson(res, 401, { valid: false }); return; }
+    attempts.delete(key);
+    const token = crypto.randomBytes(32).toString("base64url");
+    sessions.set(token, now + SESSION_TTL_MS);
+    if (sessions.size > 10000) for (const [session, expiry] of sessions) if (expiry <= now) sessions.delete(session);
+    sendJson(res, 200, { valid: true, token, expiresIn: SESSION_TTL_MS }); return;
+  }
+
+  if (pathname.startsWith("/api/chat/")) {
+    if (!getSession(req)) { sendJson(res, 401, { error: "Session expired. Enter the access PIN again." }); return; }
+    if (!requireChatReady(res)) return;
+
+    if (pathname === "/api/chat/messages" && req.method === "GET") {
+      const limitRaw = Number(new URL(req.url, "http://localhost").searchParams.get("limit") || 100);
+      const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 100));
+      const result = await supabase.from("chat_messages")
+        .select("id, room_id, sender_name, content, created_at, chat_attachments(id, drive_file_id, file_name, mime_type, size_bytes, web_view_link, thumbnail_link)")
+        .eq("room_id", "general").order("created_at", { ascending: true }).limit(limit);
+      if (result.error) { console.error("chat messages read failed", result.error.code || "unknown"); sendJson(res, 503, { error: "Could not load chat messages." }); return; }
+      sendJson(res, 200, { messages: result.data || [] }); return;
     }
-    // Bound memory usage if many unique clients hit the endpoint.
-    if (attempts.size > 10000) {
-      for (const [ip, value] of attempts) {
-        if (now - value.startedAt >= WINDOW_MS) attempts.delete(ip);
+
+    if (pathname === "/api/chat/messages" && req.method === "POST") {
+      let payload;
+      try { payload = await readJson(req); }
+      catch { sendJson(res, 400, { error: "Invalid request." }); return; }
+      const sender = typeof payload.sender_name === "string" ? payload.sender_name.trim().slice(0, 40) : "";
+      const content = typeof payload.content === "string" ? payload.content.trim() : "";
+      if (!sender || !content || content.length > 4000) {
+        sendJson(res, 400, { error: "Enter a name and a message of up to 4000 characters." }); return;
       }
+      const result = await supabase.from("chat_messages")
+        .insert({ room_id: "general", sender_name: sender, content })
+        .select("id, room_id, sender_name, content, created_at").single();
+      if (result.error) { console.error("chat message insert failed", result.error.code || "unknown"); sendJson(res, 503, { error: "Could not send message." }); return; }
+      sendJson(res, 201, { message: result.data }); return;
     }
-    return;
+    sendJson(res, 404, { error: "Not found" }); return;
   }
 
   if (pathname === "/health" && req.method === "GET") {
-    const configured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+    const configured = Boolean(SUPABASE_URL && (SUPABASE_PUBLISHABLE_KEY || SUPABASE_SERVICE_ROLE_KEY));
     let supabaseReachable = false;
     if (configured) {
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-          method: "GET",
-          headers: {
-            apikey: SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          signal: AbortSignal.timeout(5000),
-        });
+        const key = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY;
+        const response = await fetch(SUPABASE_URL + "/rest/v1/", { method: "GET", headers: { apikey: key, Authorization: "Bearer " + key }, signal: AbortSignal.timeout(5000) });
         supabaseReachable = response.ok;
-      } catch {
-        supabaseReachable = false;
-      }
+      } catch { supabaseReachable = false; }
     }
     sendJson(res, configured && supabaseReachable ? 200 : 503, {
       status: configured && supabaseReachable ? "ok" : "degraded",
       service: "cong-viec-backend",
-      supabase: { configured, reachable: supabaseReachable },
-      pinVerificationConfigured: Boolean(ACCESS_PIN && /^\d{6}$/.test(ACCESS_PIN)),
-    });
-    return;
+      supabase: { configured, reachable: supabaseReachable, chatPrivilegedKeyConfigured: Boolean(SUPABASE_SERVICE_ROLE_KEY) },
+      pinVerificationConfigured: Boolean(ACCESS_PIN && /^\d{6}$/.test(ACCESS_PIN))
+    }); return;
   }
-
-  if (pathname === "/" && req.method === "GET") {
-    sendJson(res, 200, { name: "Cong-viec API", health: "/health" });
-    return;
-  }
-
+  if (pathname === "/" && req.method === "GET") { sendJson(res, 200, { name: "Cong-viec API", health: "/health" }); return; }
   sendJson(res, 404, { error: "Not found" });
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Cong-viec backend listening on port ${PORT}`);
-});
+server.listen(PORT, "0.0.0.0", () => console.log("Cong-viec backend listening on port " + PORT));
