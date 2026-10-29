@@ -150,7 +150,7 @@ async function handleDriveRequest(req, res, pathname, supabase) {
         redirect_uri: REDIRECT_URI, grant_type: "authorization_code"
       });
       const grantedScopes = String(tokens.scope || "");
-      if (grantedScopes && !grantedScopes.split(/\\s+/).includes(DRIVE_SCOPE)) {
+      if (grantedScopes && !grantedScopes.split(/\s+/).includes(DRIVE_SCOPE)) {
         throw new Error("Google granted scopes without full Drive access; reconnect and approve the requested Google Drive permissions");
       }
       let refreshToken = tokens.refresh_token;
