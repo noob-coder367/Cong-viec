@@ -2,14 +2,131 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Ứng dụng quản lý công việc">
-  <title>Quản lý công việc</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b16">
+  <meta name="description" content="Màn hình bảo vệ Cong-viec">
+  <title>Cong-viec · Access</title>
+  <style>
+    :root{color-scheme:dark;--bg:#080b16;--panel:rgba(18,24,43,.78);--line:rgba(255,255,255,.12);--muted:#8f9ab6;--text:#f5f7ff;--accent:#a78bfa;--cyan:#67e8f9}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;overflow:hidden;color:var(--text);background:radial-gradient(ellipse at 18% 20%,rgba(124,58,237,.22),transparent 42%),radial-gradient(ellipse at 85% 80%,rgba(34,211,238,.14),transparent 40%),var(--bg);padding:24px}
+    body:before,body:after{content:"";position:fixed;width:320px;height:320px;border-radius:50%;filter:blur(75px);opacity:.28;pointer-events:none;animation:float 10s ease-in-out infinite alternate}
+    body:before{background:#7c3aed;top:-140px;left:-100px}body:after{background:#0891b2;bottom:-170px;right:-100px;animation-delay:-4s}
+    .wrap{width:min(100%,410px);position:relative;z-index:1;animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+    .brand{display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:28px;letter-spacing:.16em;font-size:12px;font-weight:800;color:#c7d2fe}
+    .brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#22d3ee);color:#090b16;box-shadow:0 5px 30px #8b5cf655}
+    .panel{padding:clamp(26px,7vw,38px);border:1px solid var(--line);border-radius:28px;background:var(--panel);backdrop-filter:blur(22px);box-shadow:0 30px 90px #0006, inset 0 1px #ffffff08;text-align:center}
+    .lock{width:62px;height:62px;margin:0 auto 22px;border-radius:20px;display:grid;place-items:center;background:linear-gradient(145deg,#a78bfa22,#22d3ee16);border:1px solid #c4b5fd33;color:#c4b5fd}
+    h1{font-size:clamp(24px,6vw,30px);letter-spacing:-.04em;margin:0 0 10px;font-weight:750}
+    .sub{margin:0 auto 28px;color:var(--muted);font-size:14px;line-height:1.65;max-width:270px}
+    .pin{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:0 0 17px}
+    .pin input{width:100%;min-width:0;aspect-ratio:.78;border-radius:13px;border:1px solid #ffffff20;background:#080b16a8;color:white;text-align:center;font-size:clamp(21px,6vw,27px);font-weight:700;outline:none;caret-color:var(--cyan);transition:border-color .2s,box-shadow .2s,transform .2s,background .2s}
+    .pin input:focus{border-color:#a78bfa;box-shadow:0 0 0 3px #a78bfa20,0 0 22px #8b5cf622;background:#11162a}
+    .pin input.filled{border-color:#a78bfa80}
+    .pin input:disabled{opacity:.8}
+    .hint{min-height:22px;margin:0;font-size:12px;color:var(--muted);transition:color .2s}
+    .hint.error{color:#fda4af}.hint.success{color:#67e8f9}
+    .dots{display:flex;justify-content:center;gap:6px;margin-top:23px}
+    .dots span{width:4px;height:4px;border-radius:50%;background:#8b5cf6;opacity:.45;animation:pulse 1.4s ease-in-out infinite}
+    .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+    .shake{animation:shake .38s ease}.panel.busy .pin input{border-color:#67e8f966}
+    .footer{text-align:center;color:#68728d;font-size:11px;margin-top:22px;letter-spacing:.04em}
+    .unlocked{position:fixed;inset:0;z-index:10;background:#fff;opacity:0;animation:white-in .65s ease forwards}
+    @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes float{from{transform:translate(0,0) scale(1)}to{transform:translate(55px,35px) scale(1.18)}}
+    @keyframes pulse{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+    @keyframes white-in{to{opacity:1}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+  </style>
 </head>
 <body>
-  <main>
-    <h1>Quản lý công việc</h1>
-    <p>Frontend khởi tạo thành công. Giao diện sẽ được phát triển sau.</p>
+  <main class="wrap" id="app">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>CONG-VIEC</span></div>
+    <section class="panel" id="panel" aria-labelledby="title">
+      <div class="lock" aria-hidden="true">
+        <svg width="29" height="29" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="11" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor"/></svg>
+      </div>
+      <h1 id="title">Nhập mã truy cập</h1>
+      <p class="sub">Nhập mã PIN gồm 6 chữ số để tiếp tục</p>
+      <form id="pin-form" autocomplete="off">
+        <div class="pin" id="pin-inputs" role="group" aria-label="Mã PIN gồm 6 chữ số">
+          <input aria-label="Chữ số 1" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="0" autofocus required><input aria-label="Chữ số 2" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="1"  required><input aria-label="Chữ số 3" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="2"  required><input aria-label="Chữ số 4" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="3"  required><input aria-label="Chữ số 5" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="4"  required><input aria-label="Chữ số 6" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="5"  required>
+        </div>
+        <p class="hint" id="hint" role="status" aria-live="polite">Mã truy cập được bảo vệ</p>
+      </form>
+      <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    </section>
+    <p class="footer">PRIVATE ACCESS · CONG-VIEC</p>
   </main>
+  <script>
+    (() => {
+      const API_URL = "https://cong-viec.onrender.com/api/verify-pin";
+      const inputs = [...document.querySelectorAll(".pin input")];
+      const panel = document.getElementById("panel");
+      const hint = document.getElementById("hint");
+      const form = document.getElementById("pin-form");
+      let checking = false;
+      let lastAttempt = "";
+      function setMessage(message, kind = "") { hint.textContent = message; hint.className = "hint" + (kind ? " " + kind : ""); }
+      function clearInputs() { inputs.forEach(input => { input.value = ""; input.classList.remove("filled"); }); inputs[0].focus(); }
+      function readPin() { return inputs.map(input => input.value).join(""); }
+      async function verify() {
+        const pin = readPin();
+        if (checking || pin.length !== 6 || !/^\d{6}$/.test(pin) || pin === lastAttempt) return;
+        checking = true; lastAttempt = pin; panel.classList.add("busy"); inputs.forEach(input => input.disabled = true);
+        setMessage("Đang xác nhận…");
+        try {
+          const response = await fetch(API_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin}),cache:"no-store"});
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.valid === true) {
+            document.title = " ";
+            const screen = document.createElement("div");
+            screen.className = "unlocked";
+            screen.setAttribute("aria-label", "Đã mở khóa");
+            document.body.appendChild(screen);
+            document.body.style.background = "#fff";
+            return;
+          }
+          if (response.status === 429) setMessage("Thử lại sau ít phút nhé.", "error");
+          else if (response.status >= 500) setMessage("Máy chủ đang bận. Thử lại nhé.", "error");
+          else setMessage("Mã chưa đúng. Thử lại nhé.", "error");
+          panel.classList.remove("shake"); void panel.offsetWidth; panel.classList.add("shake");
+          setTimeout(() => { clearInputs(); lastAttempt = ""; }, 420);
+        } catch {
+          setMessage("Không kết nối được máy chủ. Kiểm tra mạng nhé.", "error");
+          setTimeout(() => { clearInputs(); lastAttempt = ""; }, 420);
+        } finally {
+          checking = false; panel.classList.remove("busy");
+          if (document.querySelector(".unlocked")) return;
+          inputs.forEach(input => input.disabled = false);
+        }
+      }
+      inputs.forEach((input, index) => {
+        input.addEventListener("input", () => {
+          const digit = input.value.replace(/\D/g, "").slice(-1);
+          input.value = digit;
+          input.classList.toggle("filled", Boolean(digit));
+          if (digit && index < inputs.length - 1) inputs[index + 1].focus();
+          if (inputs.every(field => field.value.length === 1)) verify();
+        });
+        input.addEventListener("keydown", event => {
+          if (event.key === "Backspace" && !input.value && index > 0) { inputs[index - 1].value = ""; inputs[index - 1].classList.remove("filled"); inputs[index - 1].focus(); }
+          if (event.key === "ArrowLeft" && index > 0) inputs[index - 1].focus();
+          if (event.key === "ArrowRight" && index < inputs.length - 1) inputs[index + 1].focus();
+        });
+        input.addEventListener("paste", event => {
+          event.preventDefault();
+          const digits = (event.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+          digits.split("").forEach((digit, i) => { inputs[i].value = digit; inputs[i].classList.toggle("filled", Boolean(digit)); });
+          inputs[Math.min(digits.length, 5)].focus();
+          if (digits.length === 6) verify();
+        });
+      });
+      form.addEventListener("submit", event => event.preventDefault());
+      setTimeout(() => inputs[0].focus(), 250);
+    })();
+  </script>
 </body>
 </html>
