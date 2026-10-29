@@ -24,7 +24,7 @@ function sendJson(res, statusCode, body) {
     "Pragma": "no-cache",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, X-File-Name",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, X-File-Name, X-Chat-Sender",
     "X-Content-Type-Options": "nosniff",
   });
   res.end(JSON.stringify(body));
@@ -69,7 +69,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, X-File-Name",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, X-File-Name, X-Chat-Sender",
       "Access-Control-Max-Age": "600",
     });
     res.end();
