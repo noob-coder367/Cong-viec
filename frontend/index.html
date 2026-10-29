@@ -1,132 +1,130 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#080b16">
-  <meta name="description" content="Màn hình bảo vệ Cong-viec">
-  <title>Cong-viec · Access</title>
-  <style>
-    :root{color-scheme:dark;--bg:#080b16;--panel:rgba(18,24,43,.78);--line:rgba(255,255,255,.12);--muted:#8f9ab6;--text:#f5f7ff;--accent:#a78bfa;--cyan:#67e8f9}
-    *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;overflow:hidden;color:var(--text);background:radial-gradient(ellipse at 18% 20%,rgba(124,58,237,.22),transparent 42%),radial-gradient(ellipse at 85% 80%,rgba(34,211,238,.14),transparent 40%),var(--bg);padding:24px}
-    body:before,body:after{content:"";position:fixed;width:320px;height:320px;border-radius:50%;filter:blur(75px);opacity:.28;pointer-events:none;animation:float 10s ease-in-out infinite alternate}
-    body:before{background:#7c3aed;top:-140px;left:-100px}body:after{background:#0891b2;bottom:-170px;right:-100px;animation-delay:-4s}
-    .wrap{width:min(100%,410px);position:relative;z-index:1;animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
-    .brand{display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:28px;letter-spacing:.16em;font-size:12px;font-weight:800;color:#c7d2fe}
-    .brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#22d3ee);color:#090b16;box-shadow:0 5px 30px #8b5cf655}
-    .panel{padding:clamp(26px,7vw,38px);border:1px solid var(--line);border-radius:28px;background:var(--panel);backdrop-filter:blur(22px);box-shadow:0 30px 90px #0006, inset 0 1px #ffffff08;text-align:center}
-    .lock{width:62px;height:62px;margin:0 auto 22px;border-radius:20px;display:grid;place-items:center;background:linear-gradient(145deg,#a78bfa22,#22d3ee16);border:1px solid #c4b5fd33;color:#c4b5fd}
-    h1{font-size:clamp(24px,6vw,30px);letter-spacing:-.04em;margin:0 0 10px;font-weight:750}
-    .sub{margin:0 auto 28px;color:var(--muted);font-size:14px;line-height:1.65;max-width:270px}
-    .pin{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:0 0 17px}
-    .pin input{width:100%;min-width:0;aspect-ratio:.78;border-radius:13px;border:1px solid #ffffff20;background:#080b16a8;color:white;text-align:center;font-size:clamp(21px,6vw,27px);font-weight:700;outline:none;caret-color:var(--cyan);transition:border-color .2s,box-shadow .2s,transform .2s,background .2s}
-    .pin input:focus{border-color:#a78bfa;box-shadow:0 0 0 3px #a78bfa20,0 0 22px #8b5cf622;background:#11162a}
-    .pin input.filled{border-color:#a78bfa80}
-    .pin input:disabled{opacity:.8}
-    .hint{min-height:22px;margin:0;font-size:12px;color:var(--muted);transition:color .2s}
-    .hint.error{color:#fda4af}.hint.success{color:#67e8f9}
-    .dots{display:flex;justify-content:center;gap:6px;margin-top:23px}
-    .dots span{width:4px;height:4px;border-radius:50%;background:#8b5cf6;opacity:.45;animation:pulse 1.4s ease-in-out infinite}
-    .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
-    .shake{animation:shake .38s ease}.panel.busy .pin input{border-color:#67e8f966}
-    .footer{text-align:center;color:#68728d;font-size:11px;margin-top:22px;letter-spacing:.04em}
-    .unlocked{position:fixed;inset:0;z-index:10;background:#fff;opacity:0;animation:white-in .65s ease forwards}
-    @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
-    @keyframes float{from{transform:translate(0,0) scale(1)}to{transform:translate(55px,35px) scale(1.18)}}
-    @keyframes pulse{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
-    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
-    @keyframes white-in{to{opacity:1}}
-    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b16"><meta name="description" content="Cong-viec Chat"><title>Cong-viec · Chat</title>
+<style>
+:root{color-scheme:dark;--bg:#080b16;--panel:#12182bcc;--line:#ffffff18;--muted:#929db7;--text:#f5f7ff;--accent:#a78bfa;--cyan:#67e8f9}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+body{min-height:100vh;min-height:100dvh;background:radial-gradient(ellipse at 15% 10%,#7c3aed24,transparent 40%),radial-gradient(ellipse at 90% 90%,#0891b222,transparent 42%),var(--bg)}
+button,input,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}
+#gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:22px}.gate-wrap{width:min(100%,410px);animation:rise .6s ease both}.brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:24px;letter-spacing:.16em;font-size:12px;font-weight:800;color:#c7d2fe}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#22d3ee);color:#090b16}
+.panel{padding:clamp(25px,7vw,36px);border:1px solid var(--line);border-radius:26px;background:var(--panel);backdrop-filter:blur(22px);box-shadow:0 30px 90px #0006;text-align:center}.lock{width:58px;height:58px;margin:0 auto 20px;border-radius:19px;display:grid;place-items:center;background:#a78bfa20;border:1px solid #c4b5fd33;color:#c4b5fd}
+h1{font-size:28px;letter-spacing:-.04em;margin:0 0 9px}.sub{margin:0 auto 25px;color:var(--muted);font-size:14px;line-height:1.6;max-width:285px}.pin{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:16px}.pin input{width:100%;min-width:0;aspect-ratio:.78;border-radius:13px;border:1px solid #ffffff20;background:#080b16a8;color:white;text-align:center;font-size:25px;font-weight:700;outline:none}.pin input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #a78bfa20}.hint{min-height:22px;margin:0;font-size:12px;color:var(--muted)}.hint.error{color:#fda4af}.hint.success{color:var(--cyan)}
+#chat-app{display:none;min-height:100vh;min-height:100dvh;padding:20px}.chat-shell{width:min(100%,1000px);height:min(850px,calc(100dvh - 40px));min-height:520px;margin:auto;border:1px solid var(--line);border-radius:25px;background:#0c1020e8;box-shadow:0 25px 100px #0006;display:flex;flex-direction:column;overflow:hidden;animation:rise .5s ease both}
+.chat-head{display:flex;align-items:center;gap:13px;padding:19px 22px;border-bottom:1px solid var(--line);background:#ffffff04}.avatar{width:45px;height:45px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,#8b5cf6,#22d3ee);color:#090b16;font-weight:900;font-size:20px}.head-copy{min-width:0;flex:1}.head-copy h2{font-size:17px;margin:0 0 4px}.head-copy p{font-size:12px;color:var(--muted);margin:0}.online{display:inline-block;width:7px;height:7px;background:#34d399;border-radius:50%;margin-right:6px}.ghost-btn{border:1px solid var(--line);border-radius:12px;background:#ffffff08;color:#cbd5e1;padding:9px 11px;font-size:12px}
+.profile{display:flex;gap:9px;align-items:center;padding:12px 18px;border-bottom:1px solid #ffffff0c}.profile label{font-size:12px;color:var(--muted);white-space:nowrap}.profile input{min-width:0;flex:1;border:1px solid #ffffff18;border-radius:10px;background:#ffffff06;padding:9px 11px;color:var(--text);outline:none}.profile input:focus,.composer textarea:focus{border-color:#a78bfa88}
+.messages{flex:1;overflow:auto;padding:22px 18px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}.empty{margin:auto;text-align:center;max-width:270px;color:var(--muted);font-size:13px;line-height:1.65}.empty-icon{font-size:30px;margin-bottom:12px}.msg{max-width:min(78%,600px);align-self:flex-start;animation:pop .2s ease}.msg.mine{align-self:flex-end}.msg-meta{display:flex;align-items:center;gap:8px;margin:0 7px 5px;font-size:11px;color:var(--muted)}.msg.mine .msg-meta{justify-content:flex-end}.bubble{border:1px solid #ffffff12;border-radius:5px 17px 17px 17px;background:#ffffff0a;padding:11px 14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:14px}.msg.mine .bubble{background:linear-gradient(135deg,#6d4bc833,#0891b222);border-color:#a78bfa35;border-radius:17px 5px 17px 17px}.msg-time{opacity:.7;font-size:10px}.composer{padding:14px 16px 17px;border-top:1px solid var(--line);background:#ffffff03}.composer-row{display:flex;align-items:flex-end;gap:10px}.composer textarea{resize:none;flex:1;min-width:0;max-height:130px;min-height:45px;border:1px solid #ffffff1c;border-radius:14px;background:#080b16c9;padding:12px 13px;color:var(--text);outline:none;line-height:1.4}.send{height:45px;width:48px;border:0;border-radius:14px;background:linear-gradient(135deg,#a78bfa,#67e8f9);color:#090b16;font-size:19px;font-weight:900;box-shadow:0 5px 25px #8b5cf633}.attach-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;color:#717d98;font-size:11px}.attach{border:1px dashed #a78bfa66;border-radius:10px;padding:7px 10px;background:#a78bfa0d;color:#c4b5fd;font-size:12px}.status{color:var(--muted);font-size:11px;min-height:16px}.status.error{color:#fda4af}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}@media(max-width:560px){#chat-app{padding:0}.chat-shell{width:100%;height:100dvh;min-height:0;border-radius:0;border:0}.chat-head{padding:15px}.messages{padding:17px 12px}.msg{max-width:88%}.profile{padding:10px 12px}.composer{padding:12px}.head-copy h2{font-size:16px}.ghost-btn{padding:8px}.attach-row{align-items:flex-start;flex-direction:column}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
 </head>
 <body>
-  <main class="wrap" id="app">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>CONG-VIEC</span></div>
-    <section class="panel" id="panel" aria-labelledby="title">
-      <div class="lock" aria-hidden="true">
-        <svg width="29" height="29" viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="11" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor"/></svg>
-      </div>
-      <h1 id="title">Nhập mã truy cập</h1>
-      <p class="sub">Nhập mã PIN gồm 6 chữ số để tiếp tục</p>
-      <form id="pin-form" autocomplete="off">
-        <div class="pin" id="pin-inputs" role="group" aria-label="Mã PIN gồm 6 chữ số">
-          <input aria-label="Chữ số 1" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="0" autofocus required><input aria-label="Chữ số 2" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="1"  required><input aria-label="Chữ số 3" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="2"  required><input aria-label="Chữ số 4" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="3"  required><input aria-label="Chữ số 5" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="4"  required><input aria-label="Chữ số 6" inputmode="numeric" pattern="[0-9]*" maxlength="1" type="password" autocomplete="one-time-code" data-index="5"  required>
-        </div>
-        <p class="hint" id="hint" role="status" aria-live="polite">Mã truy cập được bảo vệ</p>
-      </form>
-      <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
-    </section>
-    <p class="footer">PRIVATE ACCESS · CONG-VIEC</p>
+<section id="gate">
+  <div class="gate-wrap">
+    <div class="brand"><span class="brand-mark">✦</span><span>CONG-VIEC</span></div>
+    <div class="panel">
+      <div class="lock" aria-hidden="true">🔐</div><h1>Chào mừng trở lại</h1><p class="sub">Nhập mã truy cập 6 chữ số để vào phòng chat riêng</p>
+      <form id="pin-form"><div class="pin" id="pin-inputs" role="group" aria-label="Mã PIN gồm 6 chữ số">
+        <input aria-label="Chữ số 1" inputmode="numeric" maxlength="1" type="password" autocomplete="one-time-code" required>
+        <input aria-label="Chữ số 2" inputmode="numeric" maxlength="1" type="password" required>
+        <input aria-label="Chữ số 3" inputmode="numeric" maxlength="1" type="password" required>
+        <input aria-label="Chữ số 4" inputmode="numeric" maxlength="1" type="password" required>
+        <input aria-label="Chữ số 5" inputmode="numeric" maxlength="1" type="password" required>
+        <input aria-label="Chữ số 6" inputmode="numeric" maxlength="1" type="password" required>
+      </div><p class="hint" id="pin-hint" role="status">Mã truy cập được bảo vệ</p></form>
+    </div>
+  </div>
+</section>
+<section id="chat-app">
+  <main class="chat-shell">
+    <header class="chat-head"><div class="avatar">✦</div><div class="head-copy"><h2>Phòng chat chung</h2><p><span class="online"></span><span id="connection-label">Đang kết nối</span></p></div><button class="ghost-btn" id="lock-btn" type="button">Khóa lại</button></header>
+    <div class="profile"><label for="sender-name">Tên hiển thị</label><input id="sender-name" maxlength="40" placeholder="Nhập tên của bạn" autocomplete="nickname"></div>
+    <div class="messages" id="messages" aria-live="polite"><div class="empty"><div class="empty-icon">✦</div><strong>Không gian trò chuyện của bạn</strong><br>Gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện.</div></div>
+    <form class="composer" id="message-form"><div class="composer-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Nhập tin nhắn..." aria-label="Nội dung tin nhắn"></textarea><button class="send" id="send-btn" type="submit" aria-label="Gửi tin nhắn">➤</button></div><div class="attach-row"><button class="attach" id="attach-btn" type="button">＋ Đính kèm tệp</button><span id="status" class="status">Tin nhắn được lưu trong Supabase</span></div></form>
   </main>
-  <script>
-    (() => {
-      const API_URL = "https://cong-viec.onrender.com/api/verify-pin";
-      const inputs = [...document.querySelectorAll(".pin input")];
-      const panel = document.getElementById("panel");
-      const hint = document.getElementById("hint");
-      const form = document.getElementById("pin-form");
-      let checking = false;
-      let lastAttempt = "";
-      function setMessage(message, kind = "") { hint.textContent = message; hint.className = "hint" + (kind ? " " + kind : ""); }
-      function clearInputs() { inputs.forEach(input => { input.value = ""; input.classList.remove("filled"); }); inputs[0].focus(); }
-      function readPin() { return inputs.map(input => input.value).join(""); }
-      async function verify() {
-        const pin = readPin();
-        if (checking || pin.length !== 6 || !/^\d{6}$/.test(pin) || pin === lastAttempt) return;
-        checking = true; lastAttempt = pin; panel.classList.add("busy"); inputs.forEach(input => input.disabled = true);
-        setMessage("Đang xác nhận…");
-        try {
-          const response = await fetch(API_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin}),cache:"no-store"});
-          const result = await response.json().catch(() => ({}));
-          if (response.ok && result.valid === true) {
-            document.title = " ";
-            const screen = document.createElement("div");
-            screen.className = "unlocked";
-            screen.setAttribute("aria-label", "Đã mở khóa");
-            document.body.appendChild(screen);
-            document.body.style.background = "#fff";
-            return;
-          }
-          if (response.status === 429) setMessage("Thử lại sau ít phút nhé.", "error");
-          else if (response.status >= 500) setMessage("Máy chủ đang bận. Thử lại nhé.", "error");
-          else setMessage("Mã chưa đúng. Thử lại nhé.", "error");
-          panel.classList.remove("shake"); void panel.offsetWidth; panel.classList.add("shake");
-          setTimeout(() => { clearInputs(); lastAttempt = ""; }, 420);
-        } catch {
-          setMessage("Không kết nối được máy chủ. Kiểm tra mạng nhé.", "error");
-          setTimeout(() => { clearInputs(); lastAttempt = ""; }, 420);
-        } finally {
-          checking = false; panel.classList.remove("busy");
-          if (document.querySelector(".unlocked")) return;
-          inputs.forEach(input => input.disabled = false);
-        }
-      }
-      inputs.forEach((input, index) => {
-        input.addEventListener("input", () => {
-          const digit = input.value.replace(/\D/g, "").slice(-1);
-          input.value = digit;
-          input.classList.toggle("filled", Boolean(digit));
-          if (digit && index < inputs.length - 1) inputs[index + 1].focus();
-          if (inputs.every(field => field.value.length === 1)) verify();
-        });
-        input.addEventListener("keydown", event => {
-          if (event.key === "Backspace" && !input.value && index > 0) { inputs[index - 1].value = ""; inputs[index - 1].classList.remove("filled"); inputs[index - 1].focus(); }
-          if (event.key === "ArrowLeft" && index > 0) inputs[index - 1].focus();
-          if (event.key === "ArrowRight" && index < inputs.length - 1) inputs[index + 1].focus();
-        });
-        input.addEventListener("paste", event => {
-          event.preventDefault();
-          const digits = (event.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6);
-          digits.split("").forEach((digit, i) => { inputs[i].value = digit; inputs[i].classList.toggle("filled", Boolean(digit)); });
-          inputs[Math.min(digits.length, 5)].focus();
-          if (digits.length === 6) verify();
-        });
-      });
-      form.addEventListener("submit", event => event.preventDefault());
-      setTimeout(() => inputs[0].focus(), 250);
-    })();
-  </script>
-</body>
-</html>
+</section>
+<script>
+(() => {
+  const API = "https://cong-viec.onrender.com";
+  const gate = document.getElementById("gate"), app = document.getElementById("chat-app");
+  const pinInputs = [...document.querySelectorAll("#pin-inputs input")], pinHint = document.getElementById("pin-hint");
+  const messagesEl = document.getElementById("messages"), nameInput = document.getElementById("sender-name");
+  const input = document.getElementById("message-input"), form = document.getElementById("message-form");
+  const statusEl = document.getElementById("status"), connectionLabel = document.getElementById("connection-label");
+  let token = "", pollTimer = null, loading = false, lastSignature = "";
+  nameInput.value = localStorage.getItem("cong-viec-chat-name") || "";
+
+  function showPinMessage(text, error=false){pinHint.textContent=text;pinHint.className="hint"+(error?" error":"");}
+  async function verifyPin(){
+    const pin=pinInputs.map(i=>i.value).join("");
+    if(pin.length!==6||loading)return;
+    loading=true;pinInputs.forEach(i=>i.disabled=true);showPinMessage("Đang xác nhận...");
+    try{
+      const r=await fetch(API+"/api/verify-pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin}),cache:"no-store"});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok||!data.valid||!data.token)throw new Error(r.status===429?"Bạn đã thử quá nhiều lần. Chờ một lúc nhé.":r.status>=500?"Máy chủ chưa sẵn sàng.":"Mã chưa đúng, thử lại nhé.");
+      token=data.token;gate.style.display="none";app.style.display="block";input.focus();await loadMessages(true);pollTimer=setInterval(()=>loadMessages(false),3500);
+    }catch(e){showPinMessage(e.message||"Không kết nối được máy chủ.",true);pinInputs.forEach(i=>i.value="");pinInputs[0].focus();}
+    finally{loading=false;pinInputs.forEach(i=>i.disabled=false);}
+  }
+  pinInputs.forEach((el,i)=>{
+    el.addEventListener("input",()=>{el.value=el.value.replace(/\D/g,"").slice(-1);if(el.value&&i<pinInputs.length-1)pinInputs[i+1].focus();if(pinInputs.every(x=>x.value))verifyPin();});
+    el.addEventListener("keydown",e=>{if(e.key==="Backspace"&&!el.value&&i>0)pinInputs[i-1].focus();if(e.key==="ArrowLeft"&&i>0)pinInputs[i-1].focus();if(e.key==="ArrowRight"&&i<pinInputs.length-1)pinInputs[i+1].focus();});
+    el.addEventListener("paste",e=>{e.preventDefault();const ds=(e.clipboardData.getData("text")||"").replace(/\D/g,"").slice(0,6);ds.split("").forEach((d,j)=>pinInputs[j].value=d);if(ds.length===6)verifyPin();else pinInputs[Math.min(ds.length,5)].focus();});
+  });
+  document.getElementById("pin-form").addEventListener("submit",e=>e.preventDefault());
+
+  function apiFetch(path,options={}){return fetch(API+path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token}});}
+  function timeLabel(value){try{return new Intl.DateTimeFormat("vi-VN",{hour:"2-digit",minute:"2-digit"}).format(new Date(value));}catch{return "";}}
+  function renderMessages(list){
+    const nearBottom=messagesEl.scrollHeight-messagesEl.scrollTop-messagesEl.clientHeight<100;
+    messagesEl.replaceChildren();
+    if(!list.length){const empty=document.createElement("div");empty.className="empty";empty.innerHTML='<div class="empty-icon">✦</div><strong>Không gian trò chuyện của bạn</strong><br>Gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện.';messagesEl.appendChild(empty);return;}
+    for(const m of list){
+      const wrap=document.createElement("article");wrap.className="msg"+(m.sender_name===nameInput.value.trim()?" mine":"");
+      const meta=document.createElement("div");meta.className="msg-meta";
+      const sender=document.createElement("span");sender.textContent=m.sender_name;
+      const time=document.createElement("span");time.className="msg-time";time.textContent=timeLabel(m.created_at);
+      meta.append(sender,time);
+      const bubble=document.createElement("div");bubble.className="bubble";bubble.textContent=m.content;
+      wrap.append(meta,bubble);
+      if(Array.isArray(m.chat_attachments))m.chat_attachments.forEach(file=>{const a=document.createElement("a");a.href=file.web_view_link;a.target="_blank";a.rel="noopener noreferrer";a.textContent="📎 "+file.file_name;a.style.cssText="display:block;color:#c4b5fd;margin:8px 5px;font-size:12px";wrap.appendChild(a);});
+      messagesEl.appendChild(wrap);
+    }
+    if(nearBottom)messagesEl.scrollTop=messagesEl.scrollHeight;
+  }
+  async function loadMessages(initial){
+    if(!token)return;
+    try{
+      const r=await apiFetch("/api/chat/messages?limit=100",{cache:"no-store"});
+      if(r.status===401){lockChat();return;}
+      if(!r.ok)throw new Error("Không tải được tin nhắn.");
+      const data=await r.json(),list=data.messages||[];
+      const signature=list.length?list[list.length-1].id+":"+list.length:"empty";
+      if(signature!==lastSignature||initial){lastSignature=signature;renderMessages(list);}
+      connectionLabel.textContent="Đang hoạt động";statusEl.textContent="Tin nhắn được lưu trong Supabase";statusEl.className="status";
+    }catch{connectionLabel.textContent="Đang thử kết nối lại";statusEl.textContent="Mất kết nối tạm thời, sẽ tự thử lại.";statusEl.className="status error";}
+  }
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();const sender=nameInput.value.trim(),content=input.value.trim();
+    if(!sender){statusEl.textContent="Nhập tên hiển thị trước khi gửi.";statusEl.className="status error";nameInput.focus();return;}
+    if(!content)return;
+    localStorage.setItem("cong-viec-chat-name",sender);document.getElementById("send-btn").disabled=true;
+    try{
+      const r=await apiFetch("/api/chat/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sender_name:sender,content})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||"Gửi tin nhắn thất bại.");
+      input.value="";input.style.height="auto";await loadMessages(true);input.focus();
+    }catch(err){statusEl.textContent=err.message||"Không gửi được tin nhắn.";statusEl.className="status error";}
+    finally{document.getElementById("send-btn").disabled=false;}
+  });
+  input.addEventListener("input",()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,130)+"px";});
+  input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
+  nameInput.addEventListener("change",()=>localStorage.setItem("cong-viec-chat-name",nameInput.value.trim()));
+  document.getElementById("attach-btn").addEventListener("click",()=>{statusEl.textContent="Đang hoàn thiện kết nối Google Drive; gửi tin nhắn chữ đã dùng được sau khi cấu hình khóa Supabase trên Render.";statusEl.className="status error";});
+  function lockChat(){token="";if(pollTimer)clearInterval(pollTimer);pollTimer=null;lastSignature="";app.style.display="none";gate.style.display="grid";pinInputs.forEach(i=>i.value="");showPinMessage("Phiên đã hết hạn. Nhập mã để tiếp tục.");pinInputs[0].focus();}
+  document.getElementById("lock-btn").addEventListener("click",lockChat);
+  pinInputs[0].focus();
+})();
+</script>
+</body></html>
