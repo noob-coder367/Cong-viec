@@ -40,7 +40,7 @@ h1{font-size:28px;letter-spacing:-.04em;margin:0 0 9px}.sub{margin:0 auto 25px;c
     <header class="chat-head"><div class="avatar">✦</div><div class="head-copy"><h2>Phòng chat chung</h2><p><span class="online"></span><span id="connection-label">Đang kết nối</span></p></div><button class="ghost-btn" id="lock-btn" type="button">Khóa lại</button></header>
     <div class="profile"><label for="sender-name">Tên hiển thị</label><input id="sender-name" maxlength="40" placeholder="Nhập tên của bạn" autocomplete="nickname"></div>
     <div class="messages" id="messages" aria-live="polite"><div class="empty"><div class="empty-icon">✦</div><strong>Không gian trò chuyện của bạn</strong><br>Gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện.</div></div>
-    <form class="composer" id="message-form"><div class="composer-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Nhập tin nhắn..." aria-label="Nội dung tin nhắn"></textarea><button class="send" id="send-btn" type="submit" aria-label="Gửi tin nhắn">➤</button></div><div class="attach-row"><button class="attach" id="attach-btn" type="button">＋ Đính kèm tệp</button><span id="status" class="status">Tin nhắn được lưu trong Supabase</span></div></form>
+    <form class="composer" id="message-form"><div class="composer-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Nhập tin nhắn..." aria-label="Nội dung tin nhắn"></textarea><button class="send" id="send-btn" type="submit" aria-label="Gửi tin nhắn">➤</button></div><div class="attach-row"><button class="attach" id="attach-btn" type="button">＋ Đính kèm tệp</button><input id="file-input" type="file" multiple hidden accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"><span id="status" class="status">Tin nhắn được lưu trong Supabase</span></div></form>
   </main>
 </section>
 <script>
@@ -121,7 +121,32 @@ h1{font-size:28px;letter-spacing:-.04em;margin:0 0 9px}.sub{margin:0 auto 25px;c
   input.addEventListener("input",()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,130)+"px";});
   input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
   nameInput.addEventListener("change",()=>localStorage.setItem("cong-viec-chat-name",nameInput.value.trim()));
-  document.getElementById("attach-btn").addEventListener("click",()=>{statusEl.textContent="Đang hoàn thiện kết nối Google Drive; gửi tin nhắn chữ đã dùng được sau khi cấu hình khóa Supabase trên Render.";statusEl.className="status error";});
+  const fileInput=document.getElementById("file-input");
+  const attachButton=document.getElementById("attach-btn");
+  attachButton.addEventListener("click",()=>fileInput.click());
+  async function uploadSelectedFiles(files){
+    const sender=nameInput.value.trim();
+    if(!sender){statusEl.textContent="Nhập tên hiển thị trước khi gửi tệp.";statusEl.className="status error";nameInput.focus();return;}
+    localStorage.setItem("cong-viec-chat-name",sender);
+    for(const file of [...files]){
+      if(file.size>25*1024*1024){statusEl.textContent=file.name+" vượt quá giới hạn 25 MB.";statusEl.className="status error";continue;}
+      if(!token){statusEl.textContent="Phiên chat hết hạn, hãy nhập mã truy cập lại.";statusEl.className="status error";return;}
+      attachButton.disabled=true;statusEl.textContent="Đang tải lên "+file.name+"…";statusEl.className="status";
+      try{
+        const r=await apiFetch("/api/chat/attachments",{method:"POST",headers:{"Content-Type":file.type||"application/octet-stream","X-File-Name":encodeURIComponent(file.name),"X-Chat-Sender":sender},body:file});
+        const data=await r.json().catch(()=>({}));
+        if(r.status===401){lockChat();return;}
+        if(!r.ok)throw new Error(data.error||"Tải tệp thất bại.");
+        lastSignature="";await loadMessages(true);
+        statusEl.textContent="Đã gửi "+file.name;statusEl.className="status";
+      }catch(err){statusEl.textContent=err.message||("Không gửi được "+file.name);statusEl.className="status error";}
+      finally{attachButton.disabled=false;}
+    }
+  }
+  fileInput.addEventListener("change",()=>{const files=fileInput.files;fileInput.value="";if(files.length)uploadSelectedFiles(files);});
+  messagesEl.addEventListener("dragover",e=>{e.preventDefault();messagesEl.style.outline="2px dashed #a78bfa";});
+  messagesEl.addEventListener("dragleave",()=>{messagesEl.style.outline="";});
+  messagesEl.addEventListener("drop",e=>{e.preventDefault();messagesEl.style.outline="";if(e.dataTransfer?.files?.length)uploadSelectedFiles(e.dataTransfer.files);});
   function lockChat(){token="";if(pollTimer)clearInterval(pollTimer);pollTimer=null;lastSignature="";app.style.display="none";gate.style.display="grid";pinInputs.forEach(i=>i.value="");showPinMessage("Phiên đã hết hạn. Nhập mã để tiếp tục.");pinInputs[0].focus();}
   document.getElementById("lock-btn").addEventListener("click",lockChat);
   pinInputs[0].focus();
