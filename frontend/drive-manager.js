@@ -28,11 +28,11 @@
     <section id="drive-panel" role="dialog" aria-modal="true" aria-label="Quản lý Google Drive">
       <header class="dv-head"><div class="dv-icon">▤</div><div class="dv-title">Quản lý Google Drive<div class="dv-muted" id="dv-account">Khu vực riêng tư</div></div><button class="dv-btn" id="dv-close">Đóng</button></header>
       <div class="dv-tools">
-        <input class="dv-search" id="dv-search" placeholder="Tìm tên file trong thư mục hiện tại..." aria-label="Tìm file">
+        <input class="dv-search" id="dv-search" placeholder="Tìm tên file trên toàn Drive..." aria-label="Tìm file">
         <button class="dv-btn dv-primary" id="dv-connect">Kết nối Google</button>
         <button class="dv-btn" id="dv-folder">＋ Thư mục</button>
         <button class="dv-btn" id="dv-upload">↑ Tải file</button>
-        <button class="dv-btn" id="dv-trash-mode">Thùng rác</button>
+        <button class="dv-btn" id="dv-trash-mode">Thùng rác</button><button class="dv-btn" id="dv-more" style="display:none">Tải thêm</button>
         <input id="dv-file-input" type="file" hidden>
       </div>
       <div class="dv-status" id="dv-status" role="status">Đang kiểm tra kết nối...</div>
@@ -44,7 +44,7 @@
 
   const $ = (id) => document.getElementById(id);
   let driveToken = sessionStorage.getItem("cong-viec-drive-admin-token") || "";
-  let folderId = "root", folderStack = [], trashMode = false, searchTimer = null, busy = false;
+  let folderId = "root", folderStack = [], trashMode = false, searchTimer = null, busy = false, nextPageToken = "";
 
   function status(text, error) {
     $("dv-status").textContent = text;
@@ -136,7 +136,7 @@
     if ((file.mimeType || "").includes("pdf")) return "📄";
     return "📎";
   }
-  async function loadFiles() {
+  async function loadFiles(append = false) {
     if (busy) return;
     busy = true;
     status("Đang tải danh sách file...");
@@ -220,14 +220,14 @@
     } catch (error) { status(error.message, true); }
     finally { $("dv-file-input").value = ""; }
   });
-  $("dv-trash-mode").addEventListener("click", () => {
+  $("dv-more").addEventListener("click", () => loadFiles(true));\n  $("dv-trash-mode").addEventListener("click", () => {
     trashMode = !trashMode;
     $("dv-trash-mode").textContent = trashMode ? "Quay lại file" : "Thùng rác";
     $("dv-folder").style.display = trashMode ? "none" : "";
     $("dv-upload").style.display = trashMode ? "none" : "";
-    folderId = "root"; loadFiles();
+    folderId = "root"; nextPageToken = ""; loadFiles();
   });
-  $("dv-search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadFiles, 350); });
+  $("dv-search").addEventListener("input", () => { clearTimeout(searchTimer); nextPageToken = ""; searchTimer = setTimeout(() => loadFiles(false), 350); });
 
   const params = new URLSearchParams(location.search);
   if (params.has("drive")) {
