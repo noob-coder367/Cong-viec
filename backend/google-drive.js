@@ -240,6 +240,27 @@ async function handleDriveRequest(req, res, pathname, supabase) {
     return true;
   }
 
+  if (pathname === "/api/drive/create" && req.method === "POST") {
+    try {
+      const body = await readJson(req, 8192);
+      const types = {
+        document: "application/vnd.google-apps.document",
+        spreadsheet: "application/vnd.google-apps.spreadsheet",
+        presentation: "application/vnd.google-apps.presentation"
+      };
+      const type = typeof body.type === "string" ? body.type : "";
+      const name = typeof body.name === "string" ? body.name.trim().slice(0, 200) : "";
+      const parentId = typeof body.parentId === "string" && body.parentId ? body.parentId : "root";
+      if (!types[type] || !name) { json(res, 400, { error: "Choose a supported Google file type and enter a name." }); return true; }
+      const result = await withDrive(supabase, accessToken => googleRequest(accessToken, "https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType,webViewLink,parents", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, mimeType: types[type], parents: [parentId] })
+      }));
+      json(res, 201, { file: result });
+    } catch (error) { safeDriveError(res, error); }
+    return true;
+  }
+
   if (pathname === "/api/drive/folders" && req.method === "POST") {
     try {
       const body = await readJson(req, 8192);
@@ -277,6 +298,23 @@ async function handleDriveRequest(req, res, pathname, supabase) {
         method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + boundary }, body
       }));
       json(res, 201, { file: result });
+    } catch (error) { safeDriveError(res, error); }
+    return true;
+  }
+
+  const shareMatch = pathname.match(/^\/api\/drive\/files\/([^/]+)\/share$/);
+  if (shareMatch && req.method === "POST") {
+    try {
+      const fileId = decodeURIComponent(shareMatch[1]);
+      const body = await readJson(req, 8192);
+      const email = typeof body.email === "string" ? body.email.trim().slice(0, 320) : "";
+      const role = body.role === "writer" ? "writer" : "reader";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { json(res, 400, { error: "Enter a valid email address." }); return true; }
+      const result = await withDrive(supabase, accessToken => googleRequest(accessToken, "https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(fileId) + "/permissions?sendNotificationEmail=true&fields=id,type,emailAddress,role", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "user", role, emailAddress: email })
+      }));
+      json(res, 201, { permission: result });
     } catch (error) { safeDriveError(res, error); }
     return true;
   }
