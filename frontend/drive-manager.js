@@ -140,19 +140,22 @@
     if (busy) return;
     busy = true;
     status("Đang tải danh sách file...");
-    $("dv-list").replaceChildren();
+    if (!append) { $("dv-list").replaceChildren(); nextPageToken = ""; }
     try {
       const q = $("dv-search").value.trim();
       const params = new URLSearchParams({ folderId, mode: trashMode ? "trash" : "files" });
       if (q) params.set("q", q);
+      if (append && nextPageToken) params.set("pageToken", nextPageToken);
       const data = await api("/api/drive/files?" + params);
-      if (!data.files.length) {
+      if (!append && !data.files.length) {
         const empty = document.createElement("div"); empty.className = "dv-empty";
         empty.textContent = trashMode ? "Thùng rác đang trống." : "Không có file trong thư mục này.";
         $("dv-list").appendChild(empty);
       }
       data.files.forEach(file => renderFile(file));
-      status(data.files.length + " mục hiển thị" + (data.nextPageToken ? " · còn nhiều mục khác" : ""));
+      nextPageToken = data.nextPageToken || "";
+      $("dv-more").style.display = nextPageToken ? "" : "none";
+      status($("dv-list").querySelectorAll(".dv-row").length + " mục đã tải" + (nextPageToken ? " · còn nhiều mục khác" : ""));
     } catch (error) { status(error.message, true); }
     finally { busy = false; }
   }
@@ -220,7 +223,8 @@
     } catch (error) { status(error.message, true); }
     finally { $("dv-file-input").value = ""; }
   });
-  $("dv-more").addEventListener("click", () => loadFiles(true));\n  $("dv-trash-mode").addEventListener("click", () => {
+  $("dv-more").addEventListener("click", () => loadFiles(true));
+  $("dv-trash-mode").addEventListener("click", () => {
     trashMode = !trashMode;
     $("dv-trash-mode").textContent = trashMode ? "Quay lại file" : "Thùng rác";
     $("dv-folder").style.display = trashMode ? "none" : "";
