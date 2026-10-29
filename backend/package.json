@@ -1,0 +1,16 @@
+{
+  "name": "cong-viec-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API for Cong-viec",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0"
+  }
+}
