@@ -30,7 +30,7 @@
       <div class="dv-tools">
         <input class="dv-search" id="dv-search" placeholder="Tìm tên file trên toàn Drive..." aria-label="Tìm file">
         <button class="dv-btn dv-primary" id="dv-connect">Kết nối Google</button>
-        <button class="dv-btn" id="dv-folder">＋ Thư mục</button>
+        <button class="dv-btn" id="dv-folder">＋ Thư mục</button><button class="dv-btn" id="dv-doc">＋ Google Doc</button><button class="dv-btn" id="dv-sheet">＋ Bảng tính</button><button class="dv-btn" id="dv-slide">＋ Trang chiếu</button><button class="dv-btn" id="dv-root">Drive gốc</button>
         <button class="dv-btn" id="dv-upload">↑ Tải file</button>
         <button class="dv-btn" id="dv-trash-mode">Thùng rác</button><button class="dv-btn" id="dv-more" style="display:none">Tải thêm</button>
         <input id="dv-file-input" type="file" hidden>
@@ -182,6 +182,19 @@
       const link = document.createElement("a"); link.className = "dv-btn"; link.href = file.webViewLink; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = "Mở";
       link.style.textDecoration = "none"; actions.appendChild(link);
     }
+    if (!trashMode) actions.appendChild(actionButton("Chia sẻ", async () => {
+      const email = window.prompt("Email Google cần chia sẻ:");
+      if (!email || !email.trim()) return;
+      const roleChoice = window.prompt("Quyền: nhập reader để chỉ xem, hoặc writer để chỉnh sửa.", "reader");
+      const role = roleChoice === "writer" ? "writer" : "reader";
+      try {
+        await api("/api/drive/files/" + encodeURIComponent(file.id) + "/share", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), role })
+        });
+        status("Đã chia sẻ với " + email.trim() + " (" + (role === "writer" ? "có thể chỉnh sửa" : "chỉ xem") + ").");
+      } catch (error) { status(error.message, true); }
+    }));
     if (trashMode) {
       actions.appendChild(actionButton("Khôi phục", async () => mutateFile(file.id, { trashed: false }, "Đã khôi phục file.")));
     } else {
@@ -205,6 +218,24 @@
       status(success); await loadFiles();
     } catch (error) { status(error.message, true); }
   }
+  async function createGoogleFile(type, label) {
+    const name = window.prompt("Tên " + label + ":");
+    if (!name || !name.trim()) return;
+    try {
+      const data = await api("/api/drive/create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name: name.trim(), parentId: folderId })
+      });
+      status("Đã tạo " + label + ".");
+      await loadFiles();
+      if (data.file && data.file.webViewLink) window.open(data.file.webViewLink, "_blank", "noopener,noreferrer");
+    } catch (error) { status(error.message, true); }
+  }
+  $("dv-doc").addEventListener("click", () => createGoogleFile("document", "Google Doc"));
+  $("dv-sheet").addEventListener("click", () => createGoogleFile("spreadsheet", "bảng tính"));
+  $("dv-slide").addEventListener("click", () => createGoogleFile("presentation", "bài trình chiếu"));
+  $("dv-root").addEventListener("click", () => { folderId = "root"; folderStack = []; $("dv-search").value = ""; nextPageToken = ""; loadFiles(); });
+
   $("dv-folder").addEventListener("click", async () => {
     const name = window.prompt("Tên thư mục mới:");
     if (!name || !name.trim()) return;
@@ -228,6 +259,10 @@
     trashMode = !trashMode;
     $("dv-trash-mode").textContent = trashMode ? "Quay lại file" : "Thùng rác";
     $("dv-folder").style.display = trashMode ? "none" : "";
+    $("dv-doc").style.display = trashMode ? "none" : "";
+    $("dv-sheet").style.display = trashMode ? "none" : "";
+    $("dv-slide").style.display = trashMode ? "none" : "";
+    $("dv-root").style.display = trashMode ? "none" : "";
     $("dv-upload").style.display = trashMode ? "none" : "";
     folderId = "root"; nextPageToken = ""; loadFiles();
   });
