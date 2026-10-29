@@ -227,7 +227,7 @@ async function handleDriveRequest(req, res, pathname, supabase) {
       const pageToken = url.searchParams.get("pageToken") || "";
       const mode = url.searchParams.get("mode") || "files";
       const qParts = [mode === "trash" ? "trashed = true" : "trashed = false"];
-      if (mode !== "trash" && folderId) qParts.push("'" + driveQueryEscape(folderId) + "' in parents");
+      if (mode !== "trash" && folderId && !query.trim()) qParts.push("'" + driveQueryEscape(folderId) + "' in parents");
       if (query.trim()) qParts.push("name contains '" + driveQueryEscape(query.trim().slice(0, 150)) + "'");
       const params = new URLSearchParams({
         q: qParts.join(" and "), pageSize: "100",
