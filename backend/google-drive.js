@@ -361,4 +361,27 @@ async function handleDriveRequest(req, res, pathname, supabase) {
   return true;
 }
 
-module.exports = { handleDriveRequest };
+
+const CHAT_UPLOAD_FOLDER_ID = "1cxnAGUnZ1bnMISqY-7_OJgxIzTTKSflB";
+async function uploadChatFile(supabase, fileName, mimeType, fileBuffer) {
+  if (!Buffer.isBuffer(fileBuffer) || !fileBuffer.length) {
+    const error = new Error("Empty file"); error.statusCode = 400; throw error;
+  }
+  if (fileBuffer.length > MAX_UPLOAD_BYTES) {
+    const error = new Error("File too large"); error.statusCode = 413; throw error;
+  }
+  const name = String(fileName || "attachment").replace(/[\\/\\0-\\x1f\\x7f]/g, "_").trim().slice(0, 180) || "attachment";
+  const type = /^[\\w.+-]+\\/[\\w.+-]+$/.test(mimeType) ? mimeType : "application/octet-stream";
+  const boundary = "----congviec-chat-" + crypto.randomBytes(12).toString("hex");
+  const metadata = JSON.stringify({ name, mimeType: type, parents: [CHAT_UPLOAD_FOLDER_ID] });
+  const body = Buffer.concat([
+    Buffer.from("--" + boundary + "\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n" + metadata + "\\r\\n--" + boundary + "\\r\\nContent-Type: " + type + "\\r\\n\\r\\n"),
+    fileBuffer,
+    Buffer.from("\\r\\n--" + boundary + "--")
+  ]);
+  return withDrive(supabase, accessToken => googleRequest(accessToken,
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,webViewLink,thumbnailLink,parents",
+    { method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + boundary }, body }
+  ));
+}
+\nmodule.exports = { handleDriveRequest, uploadChatFile, MAX_UPLOAD_BYTES };
