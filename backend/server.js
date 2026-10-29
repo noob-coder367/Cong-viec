@@ -1,6 +1,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
+const { handleDriveRequest } = require("./google-drive");
 
 const PORT = Number(process.env.PORT) || 3000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -22,7 +23,7 @@ function sendJson(res, statusCode, body) {
     "Cache-Control": "no-store, max-age=0",
     "Pragma": "no-cache",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
     "X-Content-Type-Options": "nosniff",
   });
@@ -75,6 +76,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const pathname = new URL(req.url, "http://localhost").pathname;
+
+  if (await handleDriveRequest(req, res, pathname, supabase)) return;
 
   if (pathname === "/api/verify-pin" && req.method === "POST") {
     if (!ACCESS_PIN || !/^\d{6}$/.test(ACCESS_PIN)) {
