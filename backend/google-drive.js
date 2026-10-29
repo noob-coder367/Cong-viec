@@ -149,6 +149,10 @@ async function handleDriveRequest(req, res, pathname, supabase) {
         code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
         redirect_uri: REDIRECT_URI, grant_type: "authorization_code"
       });
+      const grantedScopes = String(tokens.scope || "");
+      if (grantedScopes && !grantedScopes.split(/\\s+/).includes(DRIVE_SCOPE)) {
+        throw new Error("Google granted scopes without full Drive access; reconnect and approve the requested Google Drive permissions");
+      }
       let refreshToken = tokens.refresh_token;
       const existing = await loadConnection(supabase);
       if (!refreshToken && existing?.refresh_token_enc) refreshToken = decryptSecret(existing.refresh_token_enc);
@@ -160,7 +164,7 @@ async function handleDriveRequest(req, res, pathname, supabase) {
       const saved = await supabase.from("google_drive_connections").upsert({
         id: "primary", email: String(profile.email || "").slice(0, 320),
         refresh_token_enc: encryptSecret(refreshToken),
-        scopes: DRIVE_SCOPE, connected_at: new Date().toISOString()
+        scopes: grantedScopes || DRIVE_SCOPE, connected_at: new Date().toISOString()
       }, { onConflict: "id" });
       if (saved.error) throw new Error("Could not persist encrypted Google Drive credentials");
       redirect(res, FRONTEND_URL + "/?drive=connected"); return true;
