@@ -174,7 +174,7 @@ h1{font-size:28px;letter-spacing:-.04em;margin:0 0 9px}.sub{margin:0 auto 25px;c
     }
     pendingFiles=[];renderPreview();attachButton.disabled=false;
   }
-  attachButton.addEventListener("click",()=>{if(pendingFiles.length){const files=[...pendingFiles];pendingFiles=[];renderPreview();uploadSelectedFiles(files);}else fileInput.click();});
+  attachButton.addEventListener("click",()=>{if(pendingFiles.length){const files=[...pendingFiles];uploadSelectedFiles(files);}else fileInput.click();});
   fileInput.addEventListener("change",()=>{queueFiles(fileInput.files);fileInput.value="";});
   messagesEl.addEventListener("dragover",e=>{e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect="copy";messagesEl.classList.add("drop-active");});
   messagesEl.addEventListener("dragleave",e=>{if(!messagesEl.contains(e.relatedTarget))messagesEl.classList.remove("drop-active");});
