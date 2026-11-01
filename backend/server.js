@@ -1,7 +1,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
-const { uploadChatFile, MAX_UPLOAD_BYTES } = require("./google-drive");
+const { uploadChatFile, MAX_UPLOAD_BYTES, handleDriveReauth } = require("./google-drive");
 
 const PORT = Number(process.env.PORT) || 3000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -77,6 +77,8 @@ const server = http.createServer(async (req, res) => {
   }
   const pathname = new URL(req.url, "http://localhost").pathname;
 
+  if (await handleDriveReauth(req, res, pathname, supabase)) return;
+
   if (pathname === "/api/verify-pin" && req.method === "POST") {
     if (!ACCESS_PIN || !/^\d{6}$/.test(ACCESS_PIN)) {
       sendJson(res, 503, { error: "PIN verification is not configured" }); return;
@@ -148,7 +150,7 @@ const server = http.createServer(async (req, res) => {
         const status = error?.statusCode === 409 ? 409 : error?.statusCode === 403 ? 403 : error?.statusCode === 413 ? 413 : error?.statusCode === 400 ? 400 : 502;
         const driveErrorText = String(error?.message || "").toLowerCase();
         const needsReauth = status === 403 && (driveErrorText.includes("insufficient authentication scopes") || driveErrorText.includes("insufficientpermissions"));
-        const message = status === 409 ? "Google Drive chưa được kết nối cho chức năng gửi tệp." : needsReauth ? "Kết nối Google Drive của máy chủ không còn đủ quyền tải tệp." : status === 403 ? "Google Drive từ chối tải tệp. Kiểm tra quyền của tài khoản đã kết nối với thư mục đích." : status === 413 ? "Mỗi tệp tối đa 25 MB." : "Không thể tải tệp lên Google Drive.";
+        const message = status === 409 ? "Google Drive chưa được kết nối cho chức năng gửi tệp." : needsReauth ? "Google Drive cần cấp lại quyền upload. Hãy bấm thử lại để cấp quyền." : status === 403 ? "Google Drive từ chối tải tệp. Kiểm tra quyền của tài khoản đã kết nối với thư mục đích." : status === 413 ? "Mỗi tệp tối đa 25 MB." : "Không thể tải tệp lên Google Drive.";
         sendJson(res, status, { error: message }); return;
       }
     }

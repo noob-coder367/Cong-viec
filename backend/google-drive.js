@@ -5,6 +5,10 @@ const CHAT_UPLOAD_FOLDER_ID = process.env.CHAT_UPLOAD_FOLDER_ID || "1cxnAGUnZ1bn
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const GOOGLE_TOKEN_ENCRYPTION_KEY = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || "";
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://cong-viec.onrender.com/auth/google/callback";
+const FRONTEND_URL = (process.env.FRONTEND_URL || "https://cong-viec-ptung1.vercel.app").replace(/\/+$/, "");
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+const reauthStates = new Map();
 
 function decryptSecret(value) {
   if (!GOOGLE_TOKEN_ENCRYPTION_KEY) throw new Error("Google Drive token encryption is not configured");
@@ -30,6 +34,44 @@ async function tokenExchange(params) {
     throw error;
   }
   return data;
+}
+
+function createReauthUrl() {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_TOKEN_ENCRYPTION_KEY) {
+    const error = new Error("Google Drive upload is not configured"); error.statusCode = 503; throw error;
+  }
+  const state = crypto.randomBytes(32).toString("base64url");
+  reauthStates.set(state, Date.now() + 10 * 60 * 1000);
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.search = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID, redirect_uri: GOOGLE_REDIRECT_URI, response_type: "code",
+    scope: DRIVE_SCOPE, access_type: "offline", prompt: "consent", include_granted_scopes: "false", state
+  }).toString();
+  return url.toString();
+}
+
+async function handleDriveReauth(req, res, pathname, supabase) {
+  const url = new URL(req.url, "http://localhost");
+  if (pathname === "/api/chat/drive/reconnect" && req.method === "POST") {
+    try { res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ url: createReauthUrl() })); }
+    catch (error) { res.writeHead(error.statusCode || 503, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ error: "Không thể tạo liên kết cấp lại quyền Google Drive." })); }
+    return true;
+  }
+  if (pathname !== "/auth/google/callback" || req.method !== "GET") return false;
+  const state = url.searchParams.get("state") || "";
+  const expiresAt = reauthStates.get(state); reauthStates.delete(state);
+  if (!expiresAt || expiresAt < Date.now() || url.searchParams.get("error")) {
+    res.writeHead(302, { Location: FRONTEND_URL + "?drive=reauth-error" }); res.end(); return true;
+  }
+  try {
+    const tokens = await tokenExchange({ code: url.searchParams.get("code") || "", client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, redirect_uri: GOOGLE_REDIRECT_URI, grant_type: "authorization_code" });
+    const refreshToken = tokens.refresh_token;
+    if (!refreshToken) throw new Error("Google did not return a refresh token");
+    const saved = await supabase.from("google_drive_connections").upsert({ id: "primary", email: "", refresh_token_enc: encryptSecret(refreshToken), scopes: String(tokens.scope || DRIVE_SCOPE), connected_at: new Date().toISOString() }, { onConflict: "id" });
+    if (saved.error) throw new Error("Could not save Google Drive connection");
+    res.writeHead(302, { Location: FRONTEND_URL + "?drive=reauth-ok" }); res.end();
+  } catch (error) { console.error("[drive] reauth failed", String(error?.message || "").slice(0, 160)); res.writeHead(302, { Location: FRONTEND_URL + "?drive=reauth-error" }); res.end(); }
+  return true;
 }
 
 async function driveAccessToken(supabase) {
@@ -102,4 +144,4 @@ async function uploadChatFile(supabase, fileName, mimeType, fileBuffer) {
   return uploadToDrive(accessToken, name, type, fileBuffer);
 }
 
-module.exports = { uploadChatFile, MAX_UPLOAD_BYTES, CHAT_UPLOAD_FOLDER_ID };
+module.exports = { uploadChatFile, MAX_UPLOAD_BYTES, CHAT_UPLOAD_FOLDER_ID, handleDriveReauth };

@@ -136,6 +136,13 @@ h1{font-size:28px;letter-spacing:-.04em;margin:0 0 9px}.sub{margin:0 auto 25px;c
         const r=await apiFetch("/api/chat/attachments",{method:"POST",headers:{"Content-Type":file.type||"application/octet-stream","X-File-Name":encodeURIComponent(file.name),"X-Chat-Sender":sender},body:file});
         const data=await r.json().catch(()=>({}));
         if(r.status===401){lockChat();return;}
+        if(r.status===403 && /cấp lại quyền/i.test(data.error||"")){
+          try{
+            const reconnect=await apiFetch("/api/chat/drive/reconnect",{method:"POST"});
+            const reconnectData=await reconnect.json().catch(()=>({}));
+            if(reconnect.ok&&reconnectData.url){window.open(reconnectData.url,"_blank","noopener,noreferrer");statusEl.textContent="Đã mở Google để cấp lại quyền. Xong rồi hãy gửi lại tệp.";statusEl.className="status error";continue;}
+          }catch{}
+        }
         if(!r.ok)throw new Error(data.error||"Tải tệp thất bại.");
         lastSignature="";await loadMessages(true);
         statusEl.textContent="Đã gửi "+file.name;statusEl.className="status";
