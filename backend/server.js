@@ -1,7 +1,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
-const { uploadChatFile, MAX_UPLOAD_BYTES, handleDriveReauth } = require("./google-drive");
+const { uploadChatFile, downloadChatFile, MAX_UPLOAD_BYTES, handleDriveReauth } = require("./google-drive");
 
 const PORT = Number(process.env.PORT) || 3000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -13,6 +13,13 @@ const attempts = new Map();
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf", "application/zip", "application/x-zip-compressed", "application/x-rar-compressed",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain"
+]);
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
   : null;
@@ -105,6 +112,30 @@ const server = http.createServer(async (req, res) => {
     if (!getSession(req)) { sendJson(res, 401, { error: "Session expired. Enter the access PIN again." }); return; }
     if (!requireChatReady(res)) return;
 
+    const contentMatch = pathname.match(/^\/api\/chat\/attachments\/([^/]+)\/content$/);
+    if (contentMatch && req.method === "GET") {
+      try {
+        const attachmentId = decodeURIComponent(contentMatch[1]);
+        const attachment = await supabase.from("chat_attachments")
+          .select("drive_file_id, mime_type, file_name")
+          .eq("id", attachmentId).maybeSingle();
+        if (attachment.error || !attachment.data) { sendJson(res, 404, { error: "Không tìm thấy tệp đính kèm." }); return; }
+        const driveResponse = await downloadChatFile(supabase, attachment.data.drive_file_id);
+        const bytes = Buffer.from(await driveResponse.arrayBuffer());
+        res.writeHead(200, {
+          "Content-Type": attachment.data.mime_type || "application/octet-stream",
+          "Content-Length": bytes.length,
+          "Content-Disposition": "inline; filename*=UTF-8''" + encodeURIComponent(attachment.data.file_name),
+          "Cache-Control": "private, max-age=300",
+          "X-Content-Type-Options": "nosniff"
+        });
+        res.end(bytes);
+      } catch (error) {
+        console.error("chat attachment read failed", error?.statusCode || "error", String(error?.message || "").slice(0, 100));
+        sendJson(res, error?.statusCode === 401 ? 401 : error?.statusCode === 403 ? 403 : 502, { error: "Không thể tải tệp đính kèm." });
+      }
+      return;
+    }
 
     if (pathname === "/api/chat/attachments" && req.method === "POST") {
       const rawName = String(req.headers["x-file-name"] || "attachment");
@@ -114,6 +145,7 @@ const server = http.createServer(async (req, res) => {
       const sender = String(req.headers["x-chat-sender"] || "").trim().slice(0, 40);
       const mimeType = String(req.headers["content-type"] || "application/octet-stream").split(";")[0].slice(0, 150);
       if (!sender) { sendJson(res, 400, { error: "Nhập tên hiển thị trước khi gửi tệp." }); return; }
+      if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/") && !ALLOWED_MIME_TYPES.has(mimeType)) { sendJson(res, 415, { error: "Loại tệp này chưa được hỗ trợ." }); return; }
       const chunks = []; let total = 0;
       try {
         for await (const chunk of req) {
@@ -142,12 +174,13 @@ const server = http.createServer(async (req, res) => {
         });
         if (attachmentResult.error) {
           console.error("chat attachment metadata insert failed", attachmentResult.error.code || "unknown");
-          sendJson(res, 503, { error: "Tệp đã tải lên nhưng chưa lưu được thông tin đính kèm." }); return;
+          await supabase.from("chat_messages").delete().eq("id", messageResult.data.id);
+          sendJson(res, 503, { error: "Không lưu được thông tin tệp; tin nhắn lỗi đã được hủy. Hãy thử lại." }); return;
         }
         sendJson(res, 201, { message: messageResult.data, attachment: { file_name: uploaded.name || fileName, web_view_link: link } }); return;
       } catch (error) {
         console.error("chat attachment upload failed", error?.statusCode || "error", String(error?.message || "").slice(0, 100));
-        const status = error?.statusCode === 409 ? 409 : error?.statusCode === 403 ? 403 : error?.statusCode === 413 ? 413 : error?.statusCode === 400 ? 400 : 502;
+        const status = error?.statusCode === 409 ? 409 : error?.statusCode === 403 ? 403 : error?.statusCode === 413 ? 413 : error?.statusCode === 415 ? 415 : error?.statusCode === 400 ? 400 : 502;
         const driveErrorText = String(error?.message || "").toLowerCase();
         const needsReauth = status === 403 && (driveErrorText.includes("insufficient authentication scopes") || driveErrorText.includes("insufficientpermissions"));
         const message = status === 409 ? "Google Drive chưa được kết nối cho chức năng gửi tệp." : needsReauth ? "Google Drive cần cấp lại quyền upload. Hãy bấm thử lại để cấp quyền." : status === 403 ? "Google Drive từ chối tải tệp. Kiểm tra quyền của tài khoản đã kết nối với thư mục đích." : status === 413 ? "Mỗi tệp tối đa 25 MB." : "Không thể tải tệp lên Google Drive.";
