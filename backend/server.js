@@ -84,6 +84,9 @@ const server = http.createServer(async (req, res) => {
   }
   const pathname = new URL(req.url, "http://localhost").pathname;
 
+  if (pathname === "/api/chat/drive/reconnect" && !getSession(req)) {
+    sendJson(res, 401, { error: "Session expired. Enter the access PIN again." }); return;
+  }
   if (await handleDriveReauth(req, res, pathname, supabase)) return;
 
   if (pathname === "/api/verify-pin" && req.method === "POST") {
