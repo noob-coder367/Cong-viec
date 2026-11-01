@@ -70,6 +70,12 @@ function requireChatReady(res) {
   }
   return true;
 }
+function driveFileName(originalName, mimeType) {
+  const extension = String(originalName || "").match(/\.([a-z0-9]{1,10})$/i)?.[1]?.toLowerCase() || (mimeType.startsWith("image/") ? "jpg" : mimeType.startsWith("video/") ? "mp4" : "bin");
+  const kind = mimeType.startsWith("image/") ? "anh" : mimeType.startsWith("video/") ? "video" : "file";
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return `cong-viec-${kind}-${stamp}-${crypto.randomBytes(3).toString("hex")}.${extension}`;
+}
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
@@ -157,7 +163,7 @@ const server = http.createServer(async (req, res) => {
           chunks.push(chunk);
         }
         if (!total) { sendJson(res, 400, { error: "Tệp trống." }); return; }
-        const uploaded = await uploadChatFile(supabase, fileName, mimeType, Buffer.concat(chunks));
+        const uploaded = await uploadChatFile(supabase, driveFileName(fileName, mimeType), mimeType, Buffer.concat(chunks));
         const messageResult = await supabase.from("chat_messages")
           .insert({ room_id: "general", sender_name: sender, content: "Đã gửi tệp: " + String(uploaded.name || fileName).slice(0, 180) })
           .select("id, room_id, sender_name, content, created_at").single();
