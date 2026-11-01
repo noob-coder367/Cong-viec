@@ -1,7 +1,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
-const { handleDriveRequest, uploadChatFile, MAX_UPLOAD_BYTES } = require("./google-drive");
+const { uploadChatFile, MAX_UPLOAD_BYTES } = require("./google-drive");
 
 const PORT = Number(process.env.PORT) || 3000;
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -77,8 +77,6 @@ const server = http.createServer(async (req, res) => {
   }
   const pathname = new URL(req.url, "http://localhost").pathname;
 
-  if (await handleDriveRequest(req, res, pathname, supabase)) return;
-
   if (pathname === "/api/verify-pin" && req.method === "POST") {
     if (!ACCESS_PIN || !/^\d{6}$/.test(ACCESS_PIN)) {
       sendJson(res, 503, { error: "PIN verification is not configured" }); return;
@@ -128,7 +126,7 @@ const server = http.createServer(async (req, res) => {
           .select("id, room_id, sender_name, content, created_at").single();
         if (messageResult.error) {
           console.error("chat attachment message insert failed", messageResult.error.code || "unknown");
-          sendJson(res, 503, { error: "Tệp đã lên Drive nhưng không lưu được tin nhắn. Hãy thử lại sau." }); return;
+          sendJson(res, 503, { error: "Tệp đã tải lên nhưng không lưu được tin nhắn. Hãy thử lại sau." }); return;
         }
         const link = uploaded.webViewLink || ("https://drive.google.com/file/d/" + encodeURIComponent(uploaded.id) + "/view");
         const attachmentResult = await supabase.from("chat_attachments").insert({
@@ -142,7 +140,7 @@ const server = http.createServer(async (req, res) => {
         });
         if (attachmentResult.error) {
           console.error("chat attachment metadata insert failed", attachmentResult.error.code || "unknown");
-          sendJson(res, 503, { error: "Tệp đã lên Drive nhưng chưa lưu được thông tin đính kèm." }); return;
+          sendJson(res, 503, { error: "Tệp đã tải lên nhưng chưa lưu được thông tin đính kèm." }); return;
         }
         sendJson(res, 201, { message: messageResult.data, attachment: { file_name: uploaded.name || fileName, web_view_link: link } }); return;
       } catch (error) {
@@ -150,7 +148,7 @@ const server = http.createServer(async (req, res) => {
         const status = error?.statusCode === 409 ? 409 : error?.statusCode === 403 ? 403 : error?.statusCode === 413 ? 413 : error?.statusCode === 400 ? 400 : 502;
         const driveErrorText = String(error?.message || "").toLowerCase();
         const needsReauth = status === 403 && (driveErrorText.includes("insufficient authentication scopes") || driveErrorText.includes("insufficientpermissions"));
-        const message = status === 409 ? "Google Drive chưa được kết nối. Quản trị viên cần kết nối Google Drive một lần trong mục Quản trị Drive." : needsReauth ? "Tài khoản Google Drive của web đang thiếu quyền tải tệp. Quản trị viên cần mở mục Quản trị Drive → Kết nối lại Google và chấp thuận quyền Drive một lần. Sau đó tất cả thiết bị đều gửi tệp được, thành viên không cần đăng nhập Google." : status === 403 ? "Google Drive từ chối tải tệp. Kiểm tra quyền của tài khoản đã kết nối với thư mục đích." : status === 413 ? "Mỗi tệp tối đa 25 MB." : "Không thể tải tệp lên Google Drive.";
+        const message = status === 409 ? "Google Drive chưa được kết nối cho chức năng gửi tệp." : needsReauth ? "Kết nối Google Drive của máy chủ không còn đủ quyền tải tệp." : status === 403 ? "Google Drive từ chối tải tệp. Kiểm tra quyền của tài khoản đã kết nối với thư mục đích." : status === 413 ? "Mỗi tệp tối đa 25 MB." : "Không thể tải tệp lên Google Drive.";
         sendJson(res, status, { error: message }); return;
       }
     }

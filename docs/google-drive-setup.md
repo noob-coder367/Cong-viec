@@ -4,8 +4,7 @@
 
 - OAuth server-side với scope `https://www.googleapis.com/auth/drive`.
 - Token làm mới được mã hóa AES-256-GCM trước khi lưu vào `public.google_drive_connections`.
-- Giao diện riêng yêu cầu `DRIVE_ADMIN_PIN`, tách biệt PIN chat.
-- Duyệt thư mục, tìm kiếm theo tên trên toàn Drive, phân trang, tạo thư mục / Google Docs / Sheets / Slides, tải file tối đa 25 MB, mở file, đổi tên, di chuyển, chia sẻ quyền xem/chỉnh sửa, chuyển vào thùng rác và khôi phục.
+- Web không cung cấp màn hình quản lý Google Drive; Drive chỉ được dùng làm nơi nhận file đính kèm từ phòng chat.
 - Dữ liệu Drive không được đưa vào Supabase Storage; file được tạo/lưu trong chính Google Drive.
 
 ## Thiết lập một lần
@@ -20,7 +19,7 @@
 
 6. Trong Render → service **Cong-viec** → **Environment**, đặt các biến sau. Không gửi giá trị bí mật vào chat và không commit chúng vào Git.
 
-   - `DRIVE_ADMIN_PIN`: PIN riêng gồm 6 chữ số, khác PIN chat.
+   - `CHAT_UPLOAD_FOLDER_ID=1cxnAGUnZ1bnMISqY-7_OJgxIzTTKSflB`: thư mục nhận file chat.
    - `GOOGLE_CLIENT_ID`: Client ID từ Google Cloud.
    - `GOOGLE_CLIENT_SECRET`: Client Secret từ Google Cloud.
    - `GOOGLE_REDIRECT_URI=https://cong-viec.onrender.com/auth/google/callback`
@@ -32,7 +31,7 @@
    Có thể tạo khóa mã hóa trong terminal bằng Node.js:
    `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
 
-7. Lưu Environment để Render redeploy. Mở [Cong-viec](https://cong-viec-ptung1.vercel.app), vào chat, bấm **Google Drive**, nhập Drive Admin PIN riêng, rồi bấm **Kết nối Google** và chọn đúng tài khoản Google.
+7. Lưu Environment để Render redeploy. Ứng dụng chỉ hiển thị phòng chat. Kết nối Drive được máy chủ sử dụng nội bộ để nhận file vào thư mục đích; người dùng không cần mở hoặc quản lý Drive trong web.
 
 ## Quyền truy cập và giới hạn
 
