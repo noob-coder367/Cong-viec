@@ -8,11 +8,10 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
 const ACCESS_PIN = process.env.ACCESS_PIN || "";
-const sessions = new Map();
 const attempts = new Map();
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf", "application/zip", "application/x-zip-compressed", "application/x-rar-compressed",
   "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -56,12 +55,19 @@ function pinMatches(candidate) {
 function getSession(req) {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  const expires = sessions.get(token);
-  if (!token || !expires || expires <= Date.now()) {
-    if (token) sessions.delete(token);
-    return null;
-  }
-  return token;
+  if (!token || !ACCESS_PIN) return null;
+  const [expiresText, signature] = token.split(".");
+  const expires = Number(expiresText);
+  if (!Number.isSafeInteger(expires) || expires <= Date.now() || !signature) return null;
+  const expected = crypto.createHmac("sha256", ACCESS_PIN).update(expiresText).digest("base64url");
+  const suppliedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  return suppliedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer) ? token : null;
+}
+function createSessionToken(now = Date.now()) {
+  const expiresText = String(now + SESSION_TTL_MS);
+  const signature = crypto.createHmac("sha256", ACCESS_PIN).update(expiresText).digest("base64url");
+  return expiresText + "." + signature;
 }
 function requireChatReady(res) {
   if (!supabase) {
@@ -111,9 +117,7 @@ const server = http.createServer(async (req, res) => {
     const pin = typeof payload.pin === "string" ? payload.pin : "";
     if (!pinMatches(pin)) { sendJson(res, 401, { valid: false }); return; }
     attempts.delete(key);
-    const token = crypto.randomBytes(32).toString("base64url");
-    sessions.set(token, now + SESSION_TTL_MS);
-    if (sessions.size > 10000) for (const [session, expiry] of sessions) if (expiry <= now) sessions.delete(session);
+    const token = createSessionToken(now);
     sendJson(res, 200, { valid: true, token, expiresIn: SESSION_TTL_MS }); return;
   }
 
